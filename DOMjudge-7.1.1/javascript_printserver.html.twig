@@ -1,0 +1,55 @@
+<script>
+    $(function () {
+        $('form[name ="print"]').submit(function (e) {
+            e.preventDefault();
+            $('#print_print').attr('disabled', true);
+            $('#print_print').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
+            $.ajax({
+                type: "POST",
+                url: $(this).attr('action'),
+                data: new FormData(this),
+                crossDomain: true,
+                xhrFields: {
+                    withCredentials: true
+                },
+                cache: false,
+                processData: false,
+                contentType: false,
+                success: function (data) {
+                    $('#beforePrint').attr('hidden', true);
+                    if (!data.hasOwnProperty('code') || !data.hasOwnProperty('msg')) {
+                        $('#printError').attr('hidden', false);
+                        $('#printBack').attr('hidden', false);
+                        $('#printResult').html('Response Error');
+                        $('#afterPrint').attr('hidden', false);
+                        return;
+                    }
+                    if (data['code'] == -1) {
+                        $('#printError').attr('hidden', false);
+                        $('#printBack').attr('hidden', false);
+                        $('#printResult').html(data['msg']);
+                        $('#afterPrint').attr('hidden', false);
+                        return;
+                    }
+                    if (data['code'] != 0) {
+                        $('#printWarning').attr('hidden', false);
+                        $('#printBack').attr('hidden', false);
+                    }
+                    else {
+                        $('#printSuccess').attr('hidden', false);
+                        $('#printClose').attr('hidden', false);
+                    }
+                    $('#printResult').html(data['msg']);
+                    $('#afterPrint').attr('hidden', false);
+                },
+                error: function (_, _, err) {
+                    $('#beforePrint').attr('hidden', true);
+                    $('#printError').attr('hidden', false);
+                    $('#printBack').attr('hidden', false);
+                    $('#printResult').html(err);
+                    $('#afterPrint').attr('hidden', false);
+                }
+            })
+        })
+    })
+</script>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Admin Panel</title>
+    <link type="text/css" rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link type="text/css" rel="stylesheet" href="css/bootstrap-vue.min.css"/>
+    <script src="js/polyfill.min.js?features=es2015%2CIntersectionObserver"></script>
+    <script src="js/vue.min.js"></script>
+    <script src="js/bootstrap-vue.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="container-fluid">
+    <div class="title">
+        <b-button variant="outline-success" :pressed="isAutoLoading" @click="toggleAutoLoading()">
+            Auto Loading
+            <b-spinner small v-if="isAutoLoading"></b-spinner>
+        </b-button>
+    </div>
+    <div class="content-table">
+        <b-table id="jobs" hover head-variant="dark" :fields="fields" :items="items" sort-by="id"
+                 sort-desc="true" primary-key="id" :tbody-transition-props="transProps" :current-page="currentPage"
+                 :per-page="perPage">
+            <template v-slot:cell(action)="row">
+                <b-button size="sm" @click="showDetail(row.item, $event.target)" class="mr-1">Detail</b-button>
+            </template>
+        </b-table>
+    </div>
+    <b-pagination
+            v-model="currentPage"
+            :total-rows="totalRows"
+            :per-page="perPage"
+            align="center"
+    ></b-pagination>
+    <b-modal id="modal" size="xl" scrollable ok-only body-class="codebg" footer-class="btnspace">
+        <template v-slot:modal-title="">
+            <b-badge pill variant="primary">{{detail.username}}</b-badge>
+            <b-badge pill variant="info">{{detail.origname}}</b-badge>
+            <b-badge pill variant="secondary">{{detail.time}}</b-badge>
+        </template>
+        <template v-slot:default="">
+            <pre><code>{{detail.code}}</code></pre>
+        </template>
+        <template v-slot:modal-footer="{ close }">
+            <b-button variant="danger" @click="reprint(detail)">Reprint</b-button>
+            <b-button variant="outline-secondary" @click="close()">Close</b-button>
+        </template>
+    </b-modal>
+</div>
+<script src="js/axios.min.js"></script>
+<script>
+  const app = new Vue({
+    el: '#app',
+    data: {
+      isAutoLoading: false,
+      intervalId: null,
+      startID: 1,
+      fields: [
+        {
+          key: 'id',
+          label: 'ID',
+          sortable: true
+        },
+        {
+          key: 'ip_address',
+          label: 'IP Address',
+          sortable: true
+        },
+        {
+          key: 'username',
+          label: 'User'
+        },
+        {
+          key: 'origname',
+          label: 'File'
+        },
+        {
+          key: 'time',
+          label: 'Time'
+        },
+        {
+          key: 'Action'
+        },
+      ],
+      items: [],
+      transProps: {
+        name: 'table-trans'
+      },
+      currentPage: 1,
+      totalRows: 0,
+      perPage: 10,
+      detail: {}
+    },
+    created: () => {
+      axios.get('JobInfo.php')
+        .then(response => {
+          const data = response.data['data']
+          if (data.length > 1) app.startID = parseInt(data[0].id) + 1
+          app.items = data
+          app.totalRows = app.items.length
+        })
+        .catch(error => {
+          console.log(error)
+        })
+    },
+    methods: {
+      toggleAutoLoading () {
+        this.isAutoLoading ^= 1
+        if (!this.isAutoLoading && this.intervalId) {
+          clearInterval(this.intervalId)
+          this.intervalId = null
+        }
+        if (this.isAutoLoading && !this.intervalId) {
+          this.intervalId = setInterval(() => {
+            axios.get('JobInfo.php?start=' + app.startID)
+              .then(response => {
+                const data = response.data['data']
+                if (data.length > 0) app.startID = parseInt(data[0].id) + 1
+                data.forEach(e => app.items.unshift(e))
+                app.totalRows = app.items.length
+              })
+              .catch(error => {
+                console.log(error)
+              })
+          }, 1000)
+        }
+      },
+      showDetail (item, button) {
+        this.detail = item
+        this.$root.$emit('bv::show::modal', 'modal', button)
+        axios.get('JobDetail.php?id=' + item.id)
+          .then(response => {
+            app.detail.code = response.data['data']
+          })
+          .catch(error => {
+            console.log(error)
+          })
+      },
+      reprint (item) {
+        const h = this.$createElement
+        const message = h(
+          'div',
+          { class: ['msgtext'] },
+          [
+            h(
+              'span',
+              { class: ['text-info'] },
+              'User: '
+            ),
+            h(
+              'span',
+              item.username
+            ),
+            h('br'),
+            h(
+              'span',
+              { class: ['text-info'] },
+              'Time: '
+            ),
+            h(
+              'span',
+              item.time
+            ),
+            h('br'),
+            h(
+              'span',
+              { class: ['text-info'] },
+              'Lang: '
+            ),
+            h(
+              'span',
+              item.language
+            ),
+            h('br'),
+            h(
+              'span',
+              { class: ['text-info'] },
+              'Path: '
+            ),
+            h(
+              'span',
+              item.file
+            )
+          ]
+        )
+        this.$bvModal.msgBoxConfirm(message, {
+          title: 'Reprint?',
+          size: 'lg',
+          buttonSize: 'sm',
+          okVariant: 'danger',
+          okTitle: 'YES',
+          cancelTitle: 'NO',
+          footerClass: 'p-2',
+          hideHeaderClose: true,
+          centered: true,
+          noCloseOnBackdrop: true
+        })
+          .then(value => {
+            if (!value) return
+            axios.get('JobReprint.php?id=' + item.id)
+              .then(response => {
+                const msg = h(
+                  'pre',
+                  { class: ['msgtext'] },
+                  response.data['msg']
+                )
+                app.$bvModal.msgBoxOk(msg, {
+                  hideHeader: true,
+                  size: 'lg',
+                  buttonSize: 'sm',
+                  okVariant: 'success',
+                  headerClass: 'p-2 border-bottom-0',
+                  footerClass: 'p-2 border-top-0',
+                  centered: true
+                })
+              })
+              .catch(error => {
+                console.log(error)
+              })
+          })
+          .catch(err => {
+            console.log(err)
+          })
+      }
+    }
+  })
+</script>
+</body>
+</html>

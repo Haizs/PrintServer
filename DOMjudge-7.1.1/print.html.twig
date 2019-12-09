@@ -1,0 +1,27 @@
+{% extends "team/base.html.twig" %}
+
+{% block title %}Print - {{ parent() }}{% endblock %}
+
+{% block content %}
+
+    <div class="container submitform pt-5">
+        <h1 class="text-center">Print source</h1>
+        <div id="beforePrint">
+            {{ form(form, {'action': url, 'multipart': true}) }}
+        </div>
+        <div id="afterPrint" hidden>
+            <div id="printSuccess" hidden class="alert alert-success">File has been printed.</div>
+            <div id="printWarning" hidden class="alert alert-warning">Warning from printer. See details below.</div>
+            <div id="printError" hidden class="alert alert-danger">Error while printing. Contact staff.</div>
+            <pre id="printResult" class="output_text m-3"></pre>
+            <a id="printClose" hidden href="./" class="btn btn-secondary mt-3">Close</a>
+            <a id="printBack" hidden href="" class="btn btn-secondary mt-3">Back</a>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extrafooter %}
+    {% include 'partials/javascript_printserver.html.twig' %}
+    {% include 'partials/javascript_print.html.twig' %}
+{% endblock %}
